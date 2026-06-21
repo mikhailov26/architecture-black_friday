@@ -1,8 +1,9 @@
 name: mongo-sharding
 services:
+
   configSrv:
-    image: mongo:latest # docker образ
-    container_name: configSrv 
+    image: mongo:latest
+    container_name: configSrv
     restart: always
     ports:
       - "27017:27017"
@@ -13,13 +14,13 @@ services:
       - config-data:/data/db
     command:
       [
-        "--configsvr",  //запуск в режиме конфигурации
+        "--configsvr",
         "--replSet",
         "config_server",
         "--bind_ip_all",
         "--port",
         "27017"
-      ] 
+      ]
     healthcheck:
       test: [ "CMD", "mongo", "--eval", "db.adminCommand('ping')" ]
       interval: 5s
@@ -38,9 +39,9 @@ services:
       - shard1-data:/data/db
     command:
       [
-        "--shardsvr", //запуск в режиме шардинга
+        "--shardsvr",
         "--replSet",
-        "shard1", //название реплики
+        "shard1",
         "--bind_ip_all",
         "--port",
         "27018"
@@ -63,10 +64,10 @@ services:
       - shard2-data:/data/db
     command:
       [
-        "--shardsvr", //запуск в режиме шардинга
+        "--shardsvr",
         "--replSet",
-        "shard2", //название реплик
-        "--bind_ip_all", // обратите внимание - она отличается от реплики 1-го шарда
+        "shard2",
+        "--bind_ip_all",
         "--port",
         "27019"
       ]
@@ -74,7 +75,7 @@ services:
       test: [ "CMD", "mongo", "--eval", "db.adminCommand('ping')" ]
       interval: 5s
       start_period: 10s
-  
+
   mongos_router:
     image: mongo:latest
     container_name: mongos_router
@@ -86,9 +87,9 @@ services:
         ipv4_address: 173.17.0.7
     command:
       [
-        "mongos", //обычная mongo в режиме роутера
-        "--configdb", 
-        "config_server/configSrv:27017", //передача данных сервера конфигурации
+        "mongos",
+        "--configdb",
+        "config_server/configSrv:27017",
         "--bind_ip_all",
         "--port",
         "27020"
@@ -100,13 +101,18 @@ services:
 
   pymongo_api:
     container_name: pymongo_api
-    build: 
+    build:
       context: api_app
       dockerfile: Dockerfile
+    depends_on:
+      - mongos_router
     ports:
       - 8080:8080
+    networks:
+      app-network:
+        ipv4_address: 173.17.0.50
     environment:
-      MONGODB_URL: "mongodb://router:27020"
+      MONGODB_URL: "mongodb://mongos_router:27020"
       MONGODB_DATABASE_NAME: "somedb"
 
 networks:
